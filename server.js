@@ -24,6 +24,10 @@ wss.on('connection', ws => {
       if (r.started) return snd(ws, { t: 'err', m: 'That game already started.' });
       if (r.m.length >= 4) return snd(ws, { t: 'err', m: 'Room is full (4 players).' });
       r.m.push(me); me.room = r; info(r);
+    } else if (m.t === 'chat' && me.room) {
+      const now = Date.now(); if (now - (me.lc || 0) < 400) return; me.lc = now;
+      const txt = String(m.m || '').replace(/[\u0000-\u001f]/g, '').trim().slice(0, 120); if (!txt) return;
+      me.room.m.forEach(x => snd(x.ws, { t: 'chat', n: me.name, m: txt }));
     } else if (m.t === 'r' && me.room && m.d) {
       const r = me.room, d = m.d;
       if (d.k === 'start' && me.id === r.host) r.started = true;
