@@ -5,25 +5,28 @@ const wss = new WebSocketServer({ server: srv }), rooms = new Map();
 let nid = 1;
 const snd = (w, o) => w.readyState === 1 && w.send(JSON.stringify(o));
 const code = () => { let c; do { c = Array.from({ length: 4 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ'[Math.random() * 24 | 0]).join(''); } while (rooms.has(c)); return c; };
-const info = r => r.m.forEach(m => snd(m.ws, { t: 'room', code: r.code, id: m.id, hostId: r.host, members: r.m.map(x => ({ id: x.id, name: x.name, ch: x.ch })) }));
+const info = r => r.m.forEach(m => snd(m.ws, { t: 'room', code: r.code, id: m.id, hostId: r.host, members: r.m.map(x => ({ id: x.id, name: x.name, ch: x.ch, mp: x.mp })) }));
 function leave(me) {
   const r = me.room; if (!r) return; me.room = null; r.m = r.m.filter(x => x !== me);
   if (me.id === r.host) { r.m.forEach(x => { snd(x.ws, { t: 'closed' }); x.room = null; }); rooms.delete(r.code); }
   else if (r.m.length) info(r); else rooms.delete(r.code);
 }
 wss.on('connection', ws => {
-  const me = { ws, id: String(nid++), name: 'Player', room: null };
+  const me = { ws, id: String(nid++), name: 'Player', room: null, ch: 'knight', mp: 0 };
   ws.on('message', raw => {
     let m; try { m = JSON.parse(raw); } catch { return; }
     if (m.t === 'create' || m.t === 'join') {
       leave(me); me.name = String(m.name || 'Player').replace(/\W/g, '').slice(0, 16) || 'Player';
       me.ch = String(m.ch || 'knight').replace(/\W/g, '').slice(0, 12) || 'knight';
+      me.mp = Math.max(0, Math.min(5, m.mp | 0));
       if (m.t === 'create') { const r = { code: code(), host: me.id, m: [me], started: false }; rooms.set(r.code, r); me.room = r; info(r); return; }
       const r = rooms.get(String(m.code || '').toUpperCase());
       if (!r) return snd(ws, { t: 'err', m: 'Room not found.' });
       if (r.started) return snd(ws, { t: 'err', m: 'That game already started.' });
       if (r.m.length >= 4) return snd(ws, { t: 'err', m: 'Room is full (4 players).' });
       r.m.push(me); me.room = r; info(r);
+    } else if (m.t === 'map' && me.room) {
+      me.mp = Math.max(0, Math.min(5, m.v | 0)); info(me.room);
     } else if (m.t === 'chat' && me.room) {
       const now = Date.now(); if (now - (me.lc || 0) < 400) return; me.lc = now;
       const txt = String(m.m || '').replace(/[\u0000-\u001f]/g, '').trim().slice(0, 120); if (!txt) return;
