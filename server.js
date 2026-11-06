@@ -18,7 +18,7 @@ wss.on('connection', ws => {
     if (m.t === 'create' || m.t === 'join') {
       leave(me); me.name = String(m.name || 'Player').replace(/\W/g, '').slice(0, 16) || 'Player';
       me.ch = String(m.ch || 'knight').replace(/\W/g, '').slice(0, 12) || 'knight';
-      me.mp = Math.max(0, Math.min(5, m.mp | 0));
+      me.mp = Math.max(0, Math.min(19, m.mp | 0));
       if (m.t === 'create') { const r = { code: code(), host: me.id, m: [me], started: false }; rooms.set(r.code, r); me.room = r; info(r); return; }
       const r = rooms.get(String(m.code || '').toUpperCase());
       if (!r) return snd(ws, { t: 'err', m: 'Room not found.' });
@@ -26,7 +26,7 @@ wss.on('connection', ws => {
       if (r.m.length >= 4) return snd(ws, { t: 'err', m: 'Room is full (4 players).' });
       r.m.push(me); me.room = r; info(r);
     } else if (m.t === 'map' && me.room) {
-      me.mp = Math.max(0, Math.min(5, m.v | 0)); info(me.room);
+      me.mp = Math.max(0, Math.min(19, m.v | 0)); info(me.room);
     } else if (m.t === 'chat' && me.room) {
       const now = Date.now(); if (now - (me.lc || 0) < 400) return; me.lc = now;
       const txt = String(m.m || '').replace(/[\u0000-\u001f]/g, '').trim().slice(0, 120); if (!txt) return;
